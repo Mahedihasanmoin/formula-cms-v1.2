@@ -3,6 +3,7 @@
 include('class/migrate_Class.php');
 $db = new migrate_class();
 extract($_POST);
+
 $con = $obj->open();
 $upload_image = false;
 $upload_file = false;
@@ -26,8 +27,10 @@ if ($count_field != 0) {
     foreach ($field as $index => $val) {
 
         $col = mysqli_real_escape_string($con, $_POST['field_type'][$index]);
+
         $col_table = mysqli_real_escape_string($con, $_POST['field_table'][$index]);
         $col_keys = mysqli_real_escape_string($con, $_POST['field_option'][$index]);
+
         $val = mysqli_real_escape_string($con, $val);
 
         if ($col == 0) {
@@ -106,7 +109,9 @@ if ($count_field != 0) {
             $validation[] = '!empty($' . $db->createFieldItem($val) . ')';
             $validation_edit[] = '!empty($' . $db->createFieldItem($val) . ')';
             $validation_edit_flag = true;
-        } elseif ($col == 8) {
+        }
+        if ($col == 8) {
+
             $fval = "text";
             $validation[] = '!empty($' . $db->createFieldItem($val) . ')';
             $validation_edit[] = '!empty($' . $db->createFieldItem($val) . ')';
@@ -114,16 +119,19 @@ if ($count_field != 0) {
         }
 
         if ($col == 7) {
+
+
             $genKeyArray = explode(',', $col_keys);
             if (!empty($genKeyArray)) {
                 foreach ($genKeyArray as $keyGen):
                     $fval = "text";
-                    $validation[] = '!empty($' . $db->createFieldItem($val) . '_' . $db->createFieldItem($keyGen) . ')';
-                    $validation_edit[] = '!empty($' . $db->createFieldItem($val) . '_' . $db->createFieldItem($keyGen) . ')';
+                    $validationCheckbox[] = '!empty($' . $db->createFieldItem($val) . '_' . $db->createFieldItem($keyGen) . ')';
+                    $validationCheckbox_edit[] = '!empty($' . $db->createFieldItem($val) . '_' . $db->createFieldItem($keyGen) . ')';
 
                     $fieldsf[] = $db->createFieldItem($val) . '_' . $db->createFieldItem($keyGen);
                     $fieldsf2[] = $fval;
                     $fieldsf3 .= '&#8216;' . $db->createFieldItem($val) . '_' . $db->createFieldItem($keyGen) . '&#8216;=>$' . $db->createFieldItem($val) . '_' . $db->createFieldItem($keyGen) . ',';
+
                 endforeach;
             }
         }
@@ -139,11 +147,9 @@ if ($count_field != 0) {
     }
 
 
-    //exit();
-
     $upload_image_code_content_lib .= ' include(&#8216;class/uploadImage_Class.php&#8216;); $imgclassget=new image_class(); ';
 
-    //echo print_r($validation);
+
     $countvali = 0;
     $validate_concat = "";
     foreach ($validation as $cvali):
@@ -151,6 +157,22 @@ if ($count_field != 0) {
             $validate_concat .= ' && ';
         $validate_concat .= "$cvali";
     endforeach;
+
+
+    // validation checkbox
+    if (!empty($validationCheckbox)) {
+        $countvaliChk = 0;
+        $validate_concatChk = "(";
+        foreach ($validationCheckbox as $cvaliChk):
+            if ($countvaliChk++ != 0)
+                $validate_concatChk .= ' || ';
+            $validate_concatChk .= "$cvaliChk";
+        endforeach;
+        $validate_concatChk .= ")";
+        $validate_concat = $validate_concat . ' && ' . $validate_concatChk;
+    }
+
+    // ##### End insert validation #####
 
     if ($validation_edit_flag) {
         $countvali_edit = 0;
@@ -162,7 +184,19 @@ if ($count_field != 0) {
         endforeach;
     }
 
-    //echo $validate_concat;
+
+    // validation checkbox
+    if ($validation_edit_flag && !empty($validationCheckbox)) {
+        $countvaliChk_edit = 0;
+        $validate_concatChk_edit = "(";
+        foreach ($validationCheckbox_edit as $cvali_editChk):
+            if ($countvaliChk_edit++ != 0)
+                $validate_concatChk_edit .= ' || ';
+            $validate_concatChk_edit .= "$cvali_editChk";
+        endforeach;
+        $validate_concatChk_edit .= ")";
+        $validate_concat_edit = $validate_concat_edit . ' && ' . $validate_concatChk_edit;
+    }
 }
 else {
     echo "0 Field Name Found";
@@ -175,15 +209,16 @@ else {
 //    echo "HHHH";
 //}
 //
-//exit();
+
 
 $db_field_array_first = array("id" => "int(20) auto_increment primary key");
 $db_field_array_last = array("date" => "date", "status" => "int(2)");
 $db_field_array_middle = array_combine($fieldsf, $fieldsf2);
 $db_merge_array = array_merge($db_field_array_first, $db_field_array_middle, $db_field_array_last);
 
-//echo $db->CreateTable($table_name,$db_merge_array);
 
+//echo $db->CreateTable($table_name,$db_merge_array);
+//exit;
 if ($db->CreateTable($table_name, $db_merge_array) == 1) {
 
     $filename = $table_name . ".php";
@@ -201,7 +236,7 @@ if ($db->CreateTable($table_name, $db_merge_array) == 1) {
         $obj->update("page_info", array("name" => $table_name, "page_name" => $filename, "menu_name" => $table, "date" => date('Y-m-d'), "status" => 1));
     }
 
-    @$content = '<?php 
+    $content = '<?php 
 		include("class/auth.php");
 		include("plugin/plugin.php");
 		$plugin=new cmsPlugin();
@@ -232,9 +267,6 @@ if ($db->CreateTable($table_name, $db_merge_array) == 1) {
     }
 
 
-    //echo $content;
-    //exit();
-
     @$content .= ' $insert=array(' . $fieldsf3 . '&#8216;date&#8216;=>date(&#8216;Y-m-d&#8216;),&#8216;status&#8216;=>1);
 				if($obj->insert($table,$insert)==1)
 				{
@@ -259,6 +291,7 @@ if ($db->CreateTable($table_name, $db_merge_array) == 1) {
         @$content .= 'if(' . $validate_concat_edit . ')
 			{';
     }
+
     @$content .= '$updatearray=array("id"=>$id);';
 
 
@@ -642,8 +675,8 @@ if ($db->CreateTable($table_name, $db_merge_array) == 1) {
 
 
                 $fval .= '<label class=&#8216;checkbox&#8216;>
-                                <input type=&#8216;checkbox&#8216; name=&#8216;<?=$' . $db->createFieldItem($val) . '->'.$secondKey.'?>&#8216;  class=&#8216;checkbox&#8216; value=&#8216;<?=$' . $db->createFieldItem($val) . '->'.$firstKey.'?>&#8216; />
-                                <?=$' . $db->createFieldItem($val) . '->'.$secondKey.'?> 
+                                <input type=&#8216;checkbox&#8216; name=&#8216;<?=$' . $db->createFieldItem($val) . '->' . $secondKey . '?>&#8216;  class=&#8216;checkbox&#8216; value=&#8216;<?=$' . $db->createFieldItem($val) . '->' . $firstKey . '?>&#8216; />
+                                <?=$' . $db->createFieldItem($val) . '->' . $secondKey . '?> 
                             </label>';
 
                 $fval .= '<?php endforeach; ?>';
